@@ -1,8 +1,9 @@
 export default function Home() {
   return (
-    <div>
+    <main style={{ padding: '2rem', fontFamily: 'Arial, sans-serif' }}>
       <h1>Welcome to Nest-Ed</h1>
       <p>Your AI-powered learning assistant is coming soon.</p>
-    </div>
+    </main>
   );
 }
+
