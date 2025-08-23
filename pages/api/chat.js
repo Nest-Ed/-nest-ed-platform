@@ -1,4 +1,3 @@
-// pages/api/chat.js
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -9,7 +8,6 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Missing 'messages' array" });
   }
 
-  // You can use EITHER provider below. We'll auto-detect which key you set in Vercel.
   const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
   const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
@@ -19,53 +17,52 @@ export default async function handler(req, res) {
     let payload = {};
 
     if (OPENAI_API_KEY) {
-      // OpenAI (simple + reliable)
+      // 🔹 Use OpenAI
       endpoint = "https://api.openai.com/v1/chat/completions";
       headers = {
         "Content-Type": "application/json",
         Authorization: `Bearer ${OPENAI_API_KEY}`,
       };
       payload = {
-        model: "gpt-4o-mini",
+        model: "gpt-4o", // You can change this to gpt-3.5-turbo or others
         messages,
         temperature: 0.2,
       };
     } else if (OPENROUTER_API_KEY) {
-      // OpenRouter (works with many models)
+      // 🔹 Use OpenRouter
       endpoint = "https://openrouter.ai/api/v1/chat/completions";
       headers = {
         "Content-Type": "application/json",
         Authorization: `Bearer ${OPENROUTER_API_KEY}`,
       };
       payload = {
-        model: "openai/gpt-4o-mini",
+        model: "openai/gpt-4o", // Or qwen/qwen3-72b-instruct if desired
         messages,
         temperature: 0.2,
       };
     } else {
       return res.status(500).json({
-        error:
-          "No API key found. Set OPENAI_API_KEY or OPENROUTER_API_KEY in Vercel → Project → Settings → Environment Variables.",
+        error: "No API key found. Set OPENAI_API_KEY or OPENROUTER_API_KEY in Vercel → Project → Settings → Environment Variables.",
       });
     }
 
-    const r = await fetch(endpoint, {
+    const response = await fetch(endpoint, {
       method: "POST",
       headers,
       body: JSON.stringify(payload),
     });
 
-    if (!r.ok) {
-      const text = await r.text();
-      return res.status(r.status).json({ error: `Provider error: ${text}` });
+    if (!response.ok) {
+      const errorText = await response.text();
+      return res.status(response.status).json({ error: `Provider error: ${errorText}` });
     }
 
-    const data = await r.json();
+    const data = await response.json();
 
-    // Normalized text extraction for both providers:
+    // 🔄 Normalize response text for both providers
     const content =
-      data?.choices?.[0]?.message?.content ??
-      data?.choices?.[0]?.delta?.content ??
+      data.choices?.[0]?.message?.content ??
+      data.choices?.[0]?.delta?.content ??
       "";
 
     return res.status(200).json({ reply: content });
