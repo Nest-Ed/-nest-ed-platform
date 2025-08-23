@@ -1,58 +1,48 @@
-import { useState } from "react";
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
 
-export default function ChatBox() {
-  const [messages, setMessages] = useState([]);
-  const [userInput, setUserInput] = useState("");
-  const [loading, setLoading] = useState(false);
+  const { messages } = req.body;
 
-  const sendMessage = async () => {
-    if (!userInput.trim()) return;
+  try {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o',
+        messages: [
+          {
+            role: 'system',
+            content: `
+You are Nest-Ed — a student-centered assistant. Always scaffold answers using:
+- Step-by-step markdown outlines
+- Simple vocabulary and explanations
+- Short bullet points, not paragraphs
+- Optional diagrams, visual metaphors, or topic trees
+- Translations or simplified rewording when needed
 
-    const newMessages = [...messages, { role: "user", content: userInput }];
-    setMessages(newMessages);
-    setUserInput("");
-    setLoading(true);
+Never give the final answer — help the student build it step by step.
 
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: newMessages }),
-      });
+If the student asks for a report or essay, give a scaffolded outline in markdown.
+If the student asks for math, give breakdowns and diagrams — never solve it fully.
+            `.trim()
+          },
+          ...messages,
+        ],
+        temperature: 0.7,
+        max_tokens: 1024,
+      }),
+    });
 
-      const data = await res.json();
-      setMessages([...newMessages, { role: "assistant", content: data.reply }]);
-    } catch (err) {
-      console.error("Error:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const data = await response.json();
+    const aiReply = data.choices?.[0]?.message;
 
-  return (
-    <div className="p-4">
-      <div className="mb-4">
-        {messages.map((msg, i) => (
-          <div key={i} className="mb-2">
-            <strong>{msg.role === "user" ? "You" : "Nest-Ed"}:</strong> {msg.content}
-          </div>
-        ))}
-      </div>
-      <input
-        value={userInput}
-        onChange={(e) => setUserInput(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-        className="border p-2 w-full mb-2"
-        placeholder="Ask something..."
-      />
-      <button
-        onClick={sendMessage}
-        className="bg-purple-600 text-white px-4 py-2"
-        disabled={loading}
-      >
-        {loading ? "Thinking..." : "Send"}
-      </button>
-    </div>
-  );
+    res.status(200).json(aiReply);
+  } catch (error) {
+    res.status(500).json({ error: 'API error', details: error.message });
+  }
 }
-
