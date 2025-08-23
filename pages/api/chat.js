@@ -16,53 +16,65 @@ export default async function handler(req, res) {
     let headers = {};
     let payload = {};
 
+    const scaffoldSystemMessage = {
+      role: "system",
+      content: `You are Nest-Ed, a student-centered AI assistant. Never give direct answers.
+Your role is to help students learn by:
+- Scaffolding step-by-step thinking.
+- Using outlines, visual prompts, or simplified examples.
+- Encouraging critical thinking and independent problem solving.
+- Modeling how to structure responses without finishing it for them.
+- Avoiding full essays or final answers. Always show how to think, not what to think.
+- Support all learners using a warm, calm, helpful tone.
+Avoid giving direct summaries or solving full problems. Break it down instead.`,
+    };
+
+    const fullMessages = [scaffoldSystemMessage, ...messages];
+
     if (OPENAI_API_KEY) {
-      // 🔹 Use OpenAI
       endpoint = "https://api.openai.com/v1/chat/completions";
       headers = {
         "Content-Type": "application/json",
         Authorization: `Bearer ${OPENAI_API_KEY}`,
       };
       payload = {
-        model: "gpt-4o", // You can change this to gpt-3.5-turbo or others
-        messages,
+        model: "gpt-4o", // or gpt-4o-mini if you prefer
+        messages: fullMessages,
         temperature: 0.2,
       };
     } else if (OPENROUTER_API_KEY) {
-      // 🔹 Use OpenRouter
       endpoint = "https://openrouter.ai/api/v1/chat/completions";
       headers = {
         "Content-Type": "application/json",
         Authorization: `Bearer ${OPENROUTER_API_KEY}`,
       };
       payload = {
-        model: "openai/gpt-4o", // Or qwen/qwen3-72b-instruct if desired
-        messages,
+        model: "openai/gpt-4o", // for OpenRouter users
+        messages: fullMessages,
         temperature: 0.2,
       };
     } else {
       return res.status(500).json({
-        error: "No API key found. Set OPENAI_API_KEY or OPENROUTER_API_KEY in Vercel → Project → Settings → Environment Variables.",
+        error:
+          "No API key found. Set OPENAI_API_KEY or OPENROUTER_API_KEY in Vercel → Project → Settings → Environment Variables.",
       });
     }
 
-    const response = await fetch(endpoint, {
+    const r = await fetch(endpoint, {
       method: "POST",
       headers,
       body: JSON.stringify(payload),
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      return res.status(response.status).json({ error: `Provider error: ${errorText}` });
+    if (!r.ok) {
+      const text = await r.text();
+      return res.status(r.status).json({ error: `Provider error: ${text}` });
     }
 
-    const data = await response.json();
-
-    // 🔄 Normalize response text for both providers
+    const data = await r.json();
     const content =
-      data.choices?.[0]?.message?.content ??
-      data.choices?.[0]?.delta?.content ??
+      data?.choices?.[0]?.message?.content ??
+      data?.choices?.[0]?.delta?.content ??
       "";
 
     return res.status(200).json({ reply: content });
