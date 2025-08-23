@@ -3,61 +3,46 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const userMessage = req.body.message;
-
-  if (!userMessage) {
-    return res.status(400).json({ error: 'No message provided' });
-  }
-
-  const apiKey = process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY;
-  const endpoint = 'https://openrouter.ai/api/v1/chat/completions';
-
-  const prompt = `
-You are Nest-Ed, a student learning assistant who always replies in scaffolded form.
-Do NOT give final answers. Instead, reply using the following structure:
-- Title
-- Scaffolded outline with step-by-step thinking
-- Bullet points or questions to prompt the student
-- Optional vocabulary support or visuals if helpful
-
-Use this structure always. Be encouraging. Never write in full paragraphs unless explaining an idea clearly.
-
-User's question: "${userMessage}"
-  `;
+  const { messages } = req.body;
 
   try {
-    const response = await fetch(endpoint, {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o', // Or change to 'openchat' or 'mistral' via OpenRouter
+        model: 'gpt-4o',
         messages: [
           {
             role: 'system',
-            content: 'You are Nest-Ed, a helpful scaffolded learning assistant for students.',
+            content: `
+You are Nest-Ed — a student-centered assistant. Always scaffold answers using:
+- Step-by-step markdown outlines
+- Simple vocabulary and explanations
+- Short bullet points, not paragraphs
+- Optional diagrams, visual metaphors, or topic trees
+- Translations or simplified rewording when needed
+
+Never give the final answer — help the student build it step by step.
+
+If the student asks for a report or essay, give a scaffolded outline in markdown.
+If the student asks for math, give breakdowns and diagrams — never solve it fully.
+            `.trim()
           },
-          {
-            role: 'user',
-            content: prompt,
-          }
+          ...messages,
         ],
+        temperature: 0.7,
+        max_tokens: 1024,
       }),
     });
 
     const data = await response.json();
+    const aiReply = data.choices?.[0]?.message;
 
-    if (!data.choices || !data.choices[0]) {
-      return res.status(500).json({ error: 'No response from model' });
-    }
-
-    const reply = data.choices[0].message.content;
-
-    return res.status(200).json({ reply });
+    res.status(200).json(aiReply);
   } catch (error) {
-    console.error('Chat API error:', error);
-    return res.status(500).json({ error: 'Error connecting to language model' });
+    res.status(500).json({ error: 'API error', details: error.message });
   }
 }
