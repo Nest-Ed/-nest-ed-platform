@@ -1,48 +1,76 @@
-export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+'use client'
+import React, { useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+
+export default function Chatbox() {
+  const [input, setInput] = useState('')
+  const [messages, setMessages] = useState([])
+  const [loading, setLoading] = useState(false)
+
+  const sendMessage = async () => {
+    if (!input.trim()) return
+    const userMessage = { role: 'user', content: input }
+    setMessages([...messages, userMessage])
+    setInput('')
+    setLoading(true)
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: [...messages, userMessage] })
+      })
+
+      const data = await res.json()
+      const aiReply = { role: 'assistant', content: data.reply }
+      setMessages((prev) => [...prev, aiReply])
+    } catch (err) {
+      console.error('Error sending message:', err)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const { messages } = req.body;
-
-  try {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: `
-You are Nest-Ed — a student-centered assistant. Always scaffold answers using:
-- Step-by-step markdown outlines
-- Simple vocabulary and explanations
-- Short bullet points, not paragraphs
-- Optional diagrams, visual metaphors, or topic trees
-- Translations or simplified rewording when needed
-
-Never give the final answer — help the student build it step by step.
-
-If the student asks for a report or essay, give a scaffolded outline in markdown.
-If the student asks for math, give breakdowns and diagrams — never solve it fully.
-            `.trim()
-          },
-          ...messages,
-        ],
-        temperature: 0.7,
-        max_tokens: 1024,
-      }),
-    });
-
-    const data = await response.json();
-    const aiReply = data.choices?.[0]?.message;
-
-    res.status(200).json(aiReply);
-  } catch (error) {
-    res.status(500).json({ error: 'API error', details: error.message });
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      sendMessage()
+    }
   }
+
+  return (
+    <div className="p-4 max-w-2xl mx-auto">
+      <div className="space-y-4">
+        {messages.map((msg, idx) => (
+          <div
+            key={idx}
+            className={`p-3 rounded-lg ${
+              msg.role === 'user' ? 'bg-blue-100 text-left' : 'bg-gray-100'
+            }`}
+          >
+            <ReactMarkdown>{msg.content}</ReactMarkdown>
+          </div>
+        ))}
+        {loading && (
+          <div className="text-gray-400 italic">Nest-Ed is thinking...</div>
+        )}
+      </div>
+      <div className="mt-4 flex">
+        <textarea
+          rows="2"
+          className="flex-1 border rounded-lg p-2 mr-2"
+          placeholder="Ask Nest-Ed anything..."
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+        />
+        <button
+          onClick={sendMessage}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg"
+        >
+          Send
+        </button>
+      </div>
+    </div>
+  )
 }
