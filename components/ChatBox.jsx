@@ -9,6 +9,7 @@ export default function Chatbox() {
 
   const sendMessage = async () => {
     if (!input.trim()) return
+
     const userMessage = { role: 'user', content: input }
     setMessages([...messages, userMessage])
     setInput('')
@@ -22,8 +23,12 @@ export default function Chatbox() {
       })
 
       const data = await res.json()
-      const aiReply = { role: 'assistant', content: data.reply }
-      setMessages((prev) => [...prev, aiReply])
+      if (res.ok) {
+        const aiReply = { role: 'assistant', content: data.reply }
+        setMessages(prev => [...prev, aiReply])
+      } else {
+        console.error('API error:', data.error)
+      }
     } catch (err) {
       console.error('Error sending message:', err)
     } finally {
@@ -45,16 +50,20 @@ export default function Chatbox() {
           <div
             key={idx}
             className={`p-3 rounded-lg ${
-              msg.role === 'user' ? 'bg-blue-100 text-left' : 'bg-gray-100'
+              msg.role === 'user'
+                ? 'bg-blue-100 text-left'
+                : 'bg-gray-100'
             }`}
           >
             <ReactMarkdown>{msg.content}</ReactMarkdown>
           </div>
         ))}
+
         {loading && (
           <div className="text-gray-400 italic">Nest-Ed is thinking...</div>
         )}
       </div>
+
       <div className="mt-4 flex">
         <textarea
           rows="2"
