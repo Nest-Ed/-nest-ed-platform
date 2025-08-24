@@ -1,7 +1,7 @@
 'use client'
 import React, { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
-import { Mic } from 'lucide-react'  // mic icon
+import { Mic } from 'lucide-react'  // 🎤 mic icon
 
 export default function Chatbox() {
   const [input, setInput] = useState('')
@@ -57,7 +57,7 @@ export default function Chatbox() {
       {/* Logo + Title */}
       <div className="text-center mb-10">
         <img
-          src="/logo.png" // <- add your Nest-Ed logo here (in /public folder)
+          src="/logo.png"
           alt="Nest-Ed Logo"
           className="w-16 h-16 mx-auto mb-4"
         />
@@ -87,13 +87,25 @@ export default function Chatbox() {
         {messages.map((msg, idx) => (
           <div
             key={idx}
-            className={`p-3 rounded-lg ${
+            className={`p-4 rounded-lg whitespace-pre-line ${
               msg.role === 'user'
                 ? 'bg-blue-100 text-left'
                 : 'bg-gray-100'
             }`}
           >
-            <ReactMarkdown>{msg.content}</ReactMarkdown>
+            {/* Render Markdown nicely */}
+            <ReactMarkdown
+              components={{
+                h2: ({node, ...props}) => <h2 className="text-xl font-bold mt-4 mb-2" {...props} />,
+                h3: ({node, ...props}) => <h3 className="text-lg font-semibold mt-3 mb-1" {...props} />,
+                ul: ({node, ...props}) => <ul className="list-disc list-inside ml-4 space-y-1" {...props} />,
+                ol: ({node, ...props}) => <ol className="list-decimal list-inside ml-4 space-y-1" {...props} />,
+                li: ({node, ...props}) => <li className="ml-2" {...props} />,
+                p: ({node, ...props}) => <p className="mb-2 leading-relaxed" {...props} />,
+              }}
+            >
+              {msg.content}
+            </ReactMarkdown>
           </div>
         ))}
 
