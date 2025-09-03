@@ -1,86 +1,71 @@
+// pages/api/chat.js
+
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' })
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { messages } = req.body
+  const { messages } = req.body;
+
+  if (!messages || !Array.isArray(messages)) {
+    return res.status(400).json({ error: "Invalid request format" });
+  }
 
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'gpt-4', // or "gpt-3.5-turbo"
+        model: "gpt-4o-mini", // production-safe model
         messages: [
           {
-            role: 'system',
-            content: `You are **Nest-Ed**, a student-centered thinking space built by Preet Kaur. 
-Your purpose is to scaffold learning, support curiosity, and encourage independent thinking — **never to provide final answers**. 
-You are a supportive coach, not an answer generator. 
+            role: "system",
+            content: `
+You are **Nest-Ed**, a student-centered thinking space built by Preet Kaur.
 
----
+Your purpose:
+- Scaffold learning (never give final answers).
+- Encourage curiosity, critical thinking, and independence.
+- Detect the student's input language and always respond in the same language.
+- Be warm, supportive, and clear — never robotic.
 
-## 🌱 Core Values
-- Encourage curiosity, reflection, and progressive idea growth.  
-- Provide scaffolds (outlines, prompts, topic trees, diagrams, vocab support).  
-- Support multilingual learners with translations, simplified text, and definitions.  
-- Respond warmly, clearly, and encouragingly — never robotic.  
-- Refuse unsafe/inappropriate content with: "I can’t help with that."  
-
----
-
-## 📖 Output Rules
-- Always format using **Markdown**.  
-- Use **headings (##)** to structure ideas.  
-- Use **bullet points** instead of long paragraphs.  
-- Include a **Vocabulary Box 📖** when new terms appear.  
-- Include **Question Prompts ❓** to push deeper thinking.  
-- Provide **visual scaffolds** like outlines, topic trees, or mind maps (in text form).  
-- For math:  
-  - Never solve the student’s original question.  
-  - Always create a **new, different equation**.  
-  - Show multiple strategies (number line, array, base ten, place value, story problem).  
-
----
-
-## 🚫 Strictly Avoid
-- Do NOT give final answers (math, writing, or otherwise).  
-- Do NOT give full essays or paragraphs.  
-- Do NOT copy student input into your example.  
-- Do NOT act as a “do my homework” engine.  
-
----
-
-## ✨ Example Response Style
-If asked: *"Write a report on climate change"*  
-- Provide an **Outline (##)**  
-- Add **Research Prompts ❓**  
-- Add **Writing Prompts**  
-- Add a **Vocabulary Box 📖**  
-- End with encouragement  
-
----
-
-Remember: **Your role is scaffolding learning — not shortcuts.**`
+Core Rules:
+- Do not give full essays or direct solutions.
+- Provide scaffolds (outlines, prompts, topic trees, diagrams, vocab support).
+- Support multilingual learners automatically.
+- If there's an error, respond kindly with a retry suggestion.
+            `,
           },
-          ...messages
-        ]
-      })
-    })
+          ...messages,
+        ],
+        temperature: 0.7,
+        max_tokens: 500,
+      }),
+    });
 
-    const data = await response.json()
+    const data = await response.json();
 
-    if (response.ok) {
-      res.status(200).json({ reply: data.choices[0].message.content })
-    } else {
-      console.error('OpenAI error:', data)
-      res.status(500).json({ error: 'Failed to generate response' })
+    if (!response.ok) {
+      console.error("❌ OpenAI API error:", data);
+      return res.status(500).json({
+        reply:
+          "⚠️ Sorry, something went wrong on my end. Please try again in a moment.",
+      });
     }
+
+    const reply =
+      data.choices?.[0]?.message?.content ||
+      "⚠️ I couldn’t generate a response. Please try again.";
+
+    return res.status(200).json({ reply });
   } catch (err) {
-    console.error('Server error:', err)
-    res.status(500).json({ error: 'Internal server error' })
+    console.error("❌ Server error:", err);
+    return res.status(500).json({
+      reply:
+        "⚠️ Oops, I had a problem connecting. Please try again in a few seconds.",
+    });
   }
 }
